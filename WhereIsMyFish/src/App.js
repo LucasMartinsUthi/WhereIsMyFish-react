@@ -18,10 +18,7 @@ const style = StyleSheet.create({
 export default class App extends Component {
     render() {
         return (
-            <View style={style.container}>
-                <Board/>
-                <View style={style.bottom}></View>
-            </View>
+            <Board size={8}/>
         )
     }
 }
