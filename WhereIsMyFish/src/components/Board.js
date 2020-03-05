@@ -22,37 +22,53 @@ const style = StyleSheet.create({
 })
 
 export default class Board extends Component {
-    
+
     state = {
-        tileSize: Dimensions.get('window').width / (this.props.size * 1.7),
+        tileSize: Dimensions.get('window').width / (this.props.size * 1.8),
         svgWidth: this.setSvgWidth(),
         svgHeight: this.setSvgHeight(),
         board: this.setBoard(),
         players: [{
                 name: "Player 1",
-                points: 0
+                points: 0,
+                fishers: 2
             }, {
                 name: "Player 2",
-                points: 0
+                points: 0,
+                fishers: 2
             }
         ],
-        turn: 1,
+        turn: 0,
         move: false, // Only allow click on path tile
-        selectedTitle: {x: null, y: null} //Selected tile before move
+        selectedTitle: {x: null, y: null}, //Selected tile before move
     }
 
     setBoard() {
-        const stateBoardInitial = {
+        let stateBoardInitial = {
             enable: true,
-            player: 0,
+            player: null,
             selected: false,
             path: false,
             points: 1
         }
         let stateBoard = []
 
+        const tileP1 = [1, 2, 3]
+        const tileP2 = [4, 5]
+        const tileP3 = [6]
+
+        
         for (let y = 0; y < this.props.size; y++) {
             for (let x = 0; x < this.props.size; x++) {
+                let randomNumber = Math.floor(Math.random() * (7 - 1)) + 1
+
+                if (tileP1.includes(randomNumber))
+                    stateBoardInitial.points = 1
+                if (tileP2.includes(randomNumber))
+                    stateBoardInitial.points = 2
+                if (tileP3.includes(randomNumber))
+                    stateBoardInitial.points = 3
+
                 if (x == 0) 
                     stateBoard.push([Object.assign({}, stateBoardInitial)])
                 else 
@@ -64,27 +80,44 @@ export default class Board extends Component {
     }
     
     setSvgWidth() {
-        const tileSize = Dimensions.get('window').width / (this.props.size * 1.7) * 1.5
-        return (tileSize * this.props.size) + tileSize / 2
+        const tileSize = Dimensions.get('window').width / (this.props.size * 1.8) * 1.5
+        return ((tileSize * this.props.size) + tileSize / 2) + (4 * this.props.size)
     }
 
     setSvgHeight() {
-        const tileSize = Dimensions.get('window').width / (this.props.size * 1.7)
+        const tileSize = Dimensions.get('window').width / (this.props.size * 1.8)
         const tileHeight = tileSize * Math.sqrt(3)
-        return tileHeight * this.props.size + tileHeight / 2
+        return (tileHeight * this.props.size + tileHeight / 2) + (4 * this.props.size)
     }
 
     eventClick = (x, y) => {
-        const selectedTile = this.state.board[x][y]
+        const tile = this.state.board[x][y]
+        const state = this.state
 
-        if(!selectedTile.enable)
+        if(!tile.enable)
             return
+
+        if(state.players[state.turn].fishers){
+            let players = state.players
+            players[state.turn].fishers --
+
+            this.movePlayer(x,y)
+            this.setState({ players })
+
+            return
+        }
         
-        if(!this.state.move)
-            this.findPath(x, y)
-        else {
-            if(selectedTile.path)
+        if(!state.move){ 
+            if(tile.player == state.turn)
+                this.findPath(x, y)
+        } else {
+            if(tile.path){
                 this.movePlayer(x, y)
+                return
+            }
+            
+            if(tile.player == state.turn)
+                this.findPath(x, y)
         }
     }
 
@@ -136,7 +169,7 @@ export default class Board extends Component {
                 }
 
                 try {
-                    if(!board[path.x][path.y].enable || board[path.x][path.y].player != 0)
+                    if(!board[path.x][path.y].enable || board[path.x][path.y].player != null)
                         break
                     board[path.x][path.y].path = true
                 } catch {
@@ -154,21 +187,31 @@ export default class Board extends Component {
 
     movePlayer(x, y) {
         this.cleanPath()
-        let board = this.state.board
-        let selectedTile = this.state.selectedTitle
+        const state = this.state
+        let board = state.board
+        let selectedTile = state.selectedTitle
+
+        // Get points
+        state.players[state.turn].points += board[x][y].points
 
         // Move Player
-        board[x][y].player = this.state.turn
-        board[selectedTile.x][selectedTile.y].player = 0
+        board[x][y].player = state.turn
 
-        // Remove Tile
-        board[selectedTile.x][selectedTile.y].enable = false
+        if(selectedTile.x != null){
+            // Remove Player
+            board[selectedTile.x][selectedTile.y].player = null
+            // Remove Tile
+            board[selectedTile.x][selectedTile.y].enable = false
+        }
+
+        let turn = state.turn
+        turn ^= 1
         
         this.setState({ 
             board,
             move: false,
             selectedTitle:{x: null, y: null},
-            turn: this.state.turn * -1
+            turn
         })
     }
 
@@ -194,8 +237,8 @@ export default class Board extends Component {
                     </Svg>
                 </View>
                 <View style={style.bottom}>
-                    <Text>Player 1: {this.state.players[0].points}</Text>
-                    <Text>Player 2: {this.state.players[1].points}</Text>
+                    <Text>{this.state.players[0].name}: {this.state.players[0].points}</Text>
+                    <Text>{this.state.players[1].name}: {this.state.players[1].points}</Text>
                 </View>
             </View>
         )
